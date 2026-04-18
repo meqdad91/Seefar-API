@@ -1,0 +1,823 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Moodle Data API",
+    "description": "Read-only JSON API exposing users, courses, categories, enrolments, activities, grades, quizzes, cohorts and dashboard stats from the Moodle database. Admin-only access via Sanctum bearer tokens.",
+    "version": "1.3.1"
+  },
+  "servers": [
+    { "url": "/api", "description": "Current host" }
+  ],
+  "tags": [
+    { "name": "Auth", "description": "Login is restricted to Moodle users with manager/administrator role at system context." },
+    { "name": "Users" },
+    { "name": "Courses" },
+    { "name": "Categories" },
+    { "name": "Quizzes" },
+    { "name": "Cohorts" },
+    { "name": "Stats", "description": "Aggregate dashboard metrics (cached 10 min)." }
+  ],
+  "security": [{ "BearerAuth": [] }],
+  "paths": {
+    "/auth/login": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Log in (admins only)",
+        "description": "Validates the username/password against the Moodle user table. Login is allowed if the user is either (a) listed in the Moodle siteadmins config, or (b) has the manager/administrator role at the system context (contextlevel=10). Rate-limited to 5 requests per minute per IP. Returns a Sanctum bearer token valid for 8 hours.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["username", "password"],
+                "properties": {
+                  "username": { "type": "string" },
+                  "password": { "type": "string", "format": "password" },
+                  "device_name": { "type": "string", "description": "Optional label stored with the token.", "default": "api" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Token issued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "token": { "type": "string", "example": "1|abcdef..." },
+                    "expires_at": { "type": "string", "format": "date-time", "nullable": true },
+                    "user": { "$ref": "#/components/schemas/User" }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Bad credentials or non-admin user",
+            "content": { "application/json": { "schema": { "type": "object", "properties": { "message": { "type": "string" }, "errors": { "type": "object" } } } } }
+          },
+          "429": { "description": "Too many login attempts" }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Revoke the current bearer token",
+        "responses": {
+          "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "message": { "type": "string" } } } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "tags": ["Auth"],
+        "summary": "Get the authenticated admin",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": { "application/json": { "schema": { "type": "object", "properties": { "data": { "$ref": "#/components/schemas/User" } } } } }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/users": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "List users",
+        "description": "Paginated list of non-deleted users with optional search and sorting.",
+        "parameters": [
+          { "$ref": "#/components/parameters/Page" },
+          { "$ref": "#/components/parameters/PerPage" },
+          { "name": "search", "in": "query", "schema": { "type": "string" }, "description": "Matches username, email, first or last name." },
+          { "name": "sort", "in": "query", "schema": { "type": "string", "enum": ["id", "username", "email", "firstname", "lastname", "lastaccess", "timecreated"], "default": "id" } },
+          { "name": "direction", "in": "query", "schema": { "type": "string", "enum": ["asc", "desc"], "default": "asc" } }
+        ],
+        "responses": {
+          "200": { "$ref": "#/components/responses/UserList" }
+        }
+      }
+    },
+    "/users/{id}": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "Get user",
+        "parameters": [{ "$ref": "#/components/parameters/IdPath" }],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": { "application/json": { "schema": { "type": "object", "properties": { "data": { "$ref": "#/components/schemas/User" } } } } }
+          },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/users/{id}/courses": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "List courses for a user",
+        "description": "Courses the user is enrolled in.",
+        "parameters": [
+          { "$ref": "#/components/parameters/IdPath" },
+          { "$ref": "#/components/parameters/Page" },
+          { "$ref": "#/components/parameters/PerPage" }
+        ],
+        "responses": {
+          "200": { "$ref": "#/components/responses/CourseList" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/users/{id}/grades": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "List grades for a user",
+        "parameters": [
+          { "$ref": "#/components/parameters/IdPath" },
+          { "$ref": "#/components/parameters/Page" },
+          { "$ref": "#/components/parameters/PerPage" },
+          { "name": "course_id", "in": "query", "schema": { "type": "integer" }, "description": "Filter by course." }
+        ],
+        "responses": {
+          "200": { "$ref": "#/components/responses/GradeList" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/users/{id}/quiz-attempts": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "List quiz attempts for a user",
+        "parameters": [
+          { "$ref": "#/components/parameters/IdPath" },
+          { "$ref": "#/components/parameters/Page" },
+          { "$ref": "#/components/parameters/PerPage" },
+          { "name": "state", "in": "query", "schema": { "type": "string", "enum": ["inprogress", "overdue", "finished", "abandoned"] } }
+        ],
+        "responses": {
+          "200": { "$ref": "#/components/responses/QuizAttemptList" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/courses": {
+      "get": {
+        "tags": ["Courses"],
+        "summary": "List courses",
+        "description": "Paginated list of courses (excludes site course id=1).",
+        "parameters": [
+          { "$ref": "#/components/parameters/Page" },
+          { "$ref": "#/components/parameters/PerPage" },
+          { "name": "search", "in": "query", "schema": { "type": "string" }, "description": "Matches fullname, shortname, idnumber." },
+          { "name": "category_id", "in": "query", "schema": { "type": "integer" } },
+          { "name": "visible_only", "in": "query", "schema": { "type": "boolean", "default": true } }
+        ],
+        "responses": {
+          "200": { "$ref": "#/components/responses/CourseList" }
+        }
+      }
+    },
+    "/courses/{id}": {
+      "get": {
+        "tags": ["Courses"],
+        "summary": "Get course",
+        "parameters": [{ "$ref": "#/components/parameters/IdPath" }],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": { "application/json": { "schema": { "type": "object", "properties": { "data": { "$ref": "#/components/schemas/Course" } } } } }
+          },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/courses/{id}/students": {
+      "get": {
+        "tags": ["Courses"],
+        "summary": "List students in a course",
+        "parameters": [
+          { "$ref": "#/components/parameters/IdPath" },
+          { "$ref": "#/components/parameters/Page" },
+          { "$ref": "#/components/parameters/PerPage" }
+        ],
+        "responses": {
+          "200": { "$ref": "#/components/responses/UserList" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/courses/{id}/activities": {
+      "get": {
+        "tags": ["Courses"],
+        "summary": "List activities in a course",
+        "description": "Quizzes, assignments, labels, and other course modules.",
+        "parameters": [
+          { "$ref": "#/components/parameters/IdPath" },
+          { "$ref": "#/components/parameters/Page" },
+          { "$ref": "#/components/parameters/PerPage" }
+        ],
+        "responses": {
+          "200": { "$ref": "#/components/responses/ActivityList" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/courses/{id}/grades": {
+      "get": {
+        "tags": ["Courses"],
+        "summary": "List grades for a course",
+        "parameters": [
+          { "$ref": "#/components/parameters/IdPath" },
+          { "$ref": "#/components/parameters/Page" },
+          { "$ref": "#/components/parameters/PerPage" }
+        ],
+        "responses": {
+          "200": { "$ref": "#/components/responses/GradeList" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/categories": {
+      "get": {
+        "tags": ["Categories"],
+        "summary": "List course categories",
+        "parameters": [
+          { "$ref": "#/components/parameters/Page" },
+          { "$ref": "#/components/parameters/PerPage" },
+          { "name": "tree", "in": "query", "schema": { "type": "boolean", "default": false }, "description": "If true, returns root categories with nested children up to 3 levels deep." }
+        ],
+        "responses": {
+          "200": { "$ref": "#/components/responses/CategoryList" }
+        }
+      }
+    },
+    "/categories/{id}": {
+      "get": {
+        "tags": ["Categories"],
+        "summary": "Get category",
+        "description": "Single category, with immediate children.",
+        "parameters": [{ "$ref": "#/components/parameters/IdPath" }],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": { "application/json": { "schema": { "type": "object", "properties": { "data": { "$ref": "#/components/schemas/Category" } } } } }
+          },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/quizzes": {
+      "get": {
+        "tags": ["Quizzes"],
+        "summary": "List quizzes",
+        "parameters": [
+          { "$ref": "#/components/parameters/Page" },
+          { "$ref": "#/components/parameters/PerPage" },
+          { "name": "search", "in": "query", "schema": { "type": "string" }, "description": "Matches quiz name." },
+          { "name": "course_id", "in": "query", "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "$ref": "#/components/responses/QuizList" }
+        }
+      }
+    },
+    "/quizzes/{id}": {
+      "get": {
+        "tags": ["Quizzes"],
+        "summary": "Get quiz",
+        "parameters": [{ "$ref": "#/components/parameters/IdPath" }],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": { "application/json": { "schema": { "type": "object", "properties": { "data": { "$ref": "#/components/schemas/Quiz" } } } } }
+          },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/quizzes/{id}/attempts": {
+      "get": {
+        "tags": ["Quizzes"],
+        "summary": "List attempts for a quiz",
+        "parameters": [
+          { "$ref": "#/components/parameters/IdPath" },
+          { "$ref": "#/components/parameters/Page" },
+          { "$ref": "#/components/parameters/PerPage" },
+          { "name": "state", "in": "query", "schema": { "type": "string", "enum": ["inprogress", "overdue", "finished", "abandoned"] } },
+          { "name": "user_id", "in": "query", "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "$ref": "#/components/responses/QuizAttemptList" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/cohorts": {
+      "get": {
+        "tags": ["Cohorts"],
+        "summary": "List cohorts",
+        "parameters": [
+          { "$ref": "#/components/parameters/Page" },
+          { "$ref": "#/components/parameters/PerPage" },
+          { "name": "search", "in": "query", "schema": { "type": "string" }, "description": "Matches name or idnumber." },
+          { "name": "visible_only", "in": "query", "schema": { "type": "boolean", "default": true } }
+        ],
+        "responses": {
+          "200": { "$ref": "#/components/responses/CohortList" }
+        }
+      }
+    },
+    "/cohorts/{id}": {
+      "get": {
+        "tags": ["Cohorts"],
+        "summary": "Get cohort",
+        "parameters": [{ "$ref": "#/components/parameters/IdPath" }],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": { "application/json": { "schema": { "type": "object", "properties": { "data": { "$ref": "#/components/schemas/Cohort" } } } } }
+          },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/cohorts/{id}/members": {
+      "get": {
+        "tags": ["Cohorts"],
+        "summary": "List members of a cohort",
+        "parameters": [
+          { "$ref": "#/components/parameters/IdPath" },
+          { "$ref": "#/components/parameters/Page" },
+          { "$ref": "#/components/parameters/PerPage" }
+        ],
+        "responses": {
+          "200": { "$ref": "#/components/responses/UserList" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/stats/overview": {
+      "get": {
+        "tags": ["Stats"],
+        "summary": "Platform-wide totals",
+        "description": "User/course/enrolment/completion/quiz/cohort counts plus 7-day and 30-day active users. Cached 10 minutes.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": { "application/json": { "schema": { "type": "object", "properties": { "data": { "$ref": "#/components/schemas/StatsOverview" } } } } }
+          }
+        }
+      }
+    },
+    "/stats/courses/{id}": {
+      "get": {
+        "tags": ["Stats"],
+        "summary": "Per-course metrics",
+        "description": "Student count, activities, average final grade, completion rate, quiz attempts. Cached 10 minutes.",
+        "parameters": [{ "$ref": "#/components/parameters/IdPath" }],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": { "application/json": { "schema": { "type": "object", "properties": { "data": { "$ref": "#/components/schemas/StatsCourse" } } } } }
+          },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/stats/users/{id}/activity": {
+      "get": {
+        "tags": ["Stats"],
+        "summary": "Per-user activity",
+        "description": "Last access, enrolment counts, average grade, and recent log events. Cached 10 minutes.",
+        "parameters": [
+          { "$ref": "#/components/parameters/IdPath" },
+          { "name": "events", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 }, "description": "Number of recent log events to return." }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": { "application/json": { "schema": { "type": "object", "properties": { "data": { "$ref": "#/components/schemas/StatsUserActivity" } } } } }
+          },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "IdPath": {
+        "name": "id", "in": "path", "required": true, "schema": { "type": "integer", "minimum": 1 }
+      },
+      "Page": {
+        "name": "page", "in": "query", "schema": { "type": "integer", "minimum": 1, "default": 1 }
+      },
+      "PerPage": {
+        "name": "per_page", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 200, "default": 15 }
+      }
+    },
+    "schemas": {
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "example": 10 },
+          "username": { "type": "string", "example": "rmulqueen" },
+          "email": { "type": "string", "format": "email" },
+          "first_name": { "type": "string" },
+          "last_name": { "type": "string" },
+          "full_name": { "type": "string" },
+          "id_number": { "type": "string" },
+          "phone1": { "type": "string", "nullable": true },
+          "phone2": { "type": "string", "nullable": true },
+          "institution": { "type": "string", "nullable": true },
+          "department": { "type": "string", "nullable": true },
+          "city": { "type": "string", "nullable": true },
+          "country": { "type": "string", "nullable": true, "example": "US" },
+          "lang": { "type": "string", "example": "en" },
+          "timezone": { "type": "string", "example": "Europe/Paris" },
+          "suspended": { "type": "boolean" },
+          "deleted": { "type": "boolean" },
+          "confirmed": { "type": "boolean" },
+          "first_access_at": { "type": "string", "format": "date-time", "nullable": true },
+          "last_access_at": { "type": "string", "format": "date-time", "nullable": true },
+          "last_login_at": { "type": "string", "format": "date-time", "nullable": true },
+          "created_at": { "type": "string", "format": "date-time", "nullable": true },
+          "updated_at": { "type": "string", "format": "date-time", "nullable": true }
+        }
+      },
+      "Course": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "full_name": { "type": "string" },
+          "short_name": { "type": "string" },
+          "id_number": { "type": "string" },
+          "category_id": { "type": "integer" },
+          "category": { "allOf": [{ "$ref": "#/components/schemas/Category" }], "nullable": true },
+          "summary": { "type": "string" },
+          "format": { "type": "string", "example": "topics" },
+          "visible": { "type": "boolean" },
+          "lang": { "type": "string" },
+          "start_date": { "type": "string", "format": "date-time", "nullable": true },
+          "end_date": { "type": "string", "format": "date-time", "nullable": true },
+          "created_at": { "type": "string", "format": "date-time", "nullable": true },
+          "updated_at": { "type": "string", "format": "date-time", "nullable": true }
+        }
+      },
+      "Category": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "name": { "type": "string" },
+          "id_number": { "type": "string" },
+          "parent_id": { "type": "integer" },
+          "depth": { "type": "integer" },
+          "path": { "type": "string", "example": "/6/12" },
+          "course_count": { "type": "integer" },
+          "visible": { "type": "boolean" },
+          "children": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Category" }
+          }
+        }
+      },
+      "Grade": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "item_id": { "type": "integer" },
+          "user_id": { "type": "integer" },
+          "item_name": { "type": "string", "nullable": true },
+          "item_type": { "type": "string", "nullable": true, "example": "mod" },
+          "course_id": { "type": "integer", "nullable": true },
+          "raw_grade": { "type": "number", "nullable": true },
+          "final_grade": { "type": "number", "nullable": true },
+          "grade_max": { "type": "number", "nullable": true },
+          "grade_min": { "type": "number", "nullable": true },
+          "grade_pass": { "type": "number", "nullable": true },
+          "feedback": { "type": "string", "nullable": true },
+          "updated_at": { "type": "string", "format": "date-time", "nullable": true }
+        }
+      },
+      "Activity": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "section": { "type": "integer" },
+          "type": { "type": "string", "example": "quiz" },
+          "instance_id": { "type": "integer" },
+          "visible": { "type": "boolean" }
+        }
+      },
+      "Quiz": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "name": { "type": "string" },
+          "course_id": { "type": "integer" },
+          "intro": { "type": "string", "nullable": true },
+          "time_open": { "type": "string", "format": "date-time", "nullable": true },
+          "time_close": { "type": "string", "format": "date-time", "nullable": true },
+          "time_limit_seconds": { "type": "integer" },
+          "attempts_allowed": { "type": "integer", "description": "0 = unlimited" },
+          "grade_method": { "type": "integer" },
+          "grade_max": { "type": "number" },
+          "sum_grades": { "type": "number" },
+          "created_at": { "type": "string", "format": "date-time", "nullable": true },
+          "updated_at": { "type": "string", "format": "date-time", "nullable": true }
+        }
+      },
+      "QuizAttempt": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "quiz_id": { "type": "integer" },
+          "user_id": { "type": "integer" },
+          "attempt_number": { "type": "integer" },
+          "state": { "type": "string", "enum": ["inprogress", "overdue", "finished", "abandoned"] },
+          "preview": { "type": "boolean" },
+          "sum_grades": { "type": "number", "nullable": true },
+          "started_at": { "type": "string", "format": "date-time", "nullable": true },
+          "finished_at": { "type": "string", "format": "date-time", "nullable": true },
+          "updated_at": { "type": "string", "format": "date-time", "nullable": true }
+        }
+      },
+      "Cohort": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "name": { "type": "string" },
+          "id_number": { "type": "string" },
+          "description": { "type": "string", "nullable": true },
+          "visible": { "type": "boolean" },
+          "context_id": { "type": "integer" },
+          "created_at": { "type": "string", "format": "date-time", "nullable": true },
+          "updated_at": { "type": "string", "format": "date-time", "nullable": true }
+        }
+      },
+      "StatsOverview": {
+        "type": "object",
+        "properties": {
+          "users": {
+            "type": "object",
+            "properties": {
+              "total": { "type": "integer" },
+              "suspended": { "type": "integer" },
+              "active_last_30d": { "type": "integer" },
+              "active_last_7d": { "type": "integer" }
+            }
+          },
+          "courses": {
+            "type": "object",
+            "properties": {
+              "total": { "type": "integer" },
+              "visible": { "type": "integer" },
+              "categories": { "type": "integer" }
+            }
+          },
+          "enrolments": {
+            "type": "object",
+            "properties": {
+              "total": { "type": "integer" },
+              "active": { "type": "integer" }
+            }
+          },
+          "completions": {
+            "type": "object",
+            "properties": {
+              "started": { "type": "integer" },
+              "completed": { "type": "integer" }
+            }
+          },
+          "quizzes": {
+            "type": "object",
+            "properties": {
+              "total": { "type": "integer" },
+              "attempts_total": { "type": "integer" },
+              "attempts_finished": { "type": "integer" }
+            }
+          },
+          "cohorts": { "type": "integer" },
+          "generated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "StatsCourse": {
+        "type": "object",
+        "properties": {
+          "course_id": { "type": "integer" },
+          "students": { "type": "integer" },
+          "activities": { "type": "integer" },
+          "quizzes": { "type": "integer" },
+          "quiz_attempts": { "type": "integer" },
+          "average_grade": { "type": "number", "nullable": true },
+          "grade_max": { "type": "number", "nullable": true },
+          "graded_users": { "type": "integer" },
+          "completions": {
+            "type": "object",
+            "properties": {
+              "started": { "type": "integer" },
+              "completed": { "type": "integer" },
+              "rate": { "type": "number", "nullable": true, "description": "completed/started, 0–1" }
+            }
+          },
+          "generated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "StatsUserActivity": {
+        "type": "object",
+        "properties": {
+          "user_id": { "type": "integer" },
+          "last_access_at": { "type": "string", "format": "date-time", "nullable": true },
+          "last_login_at": { "type": "string", "format": "date-time", "nullable": true },
+          "enrolled_courses": { "type": "integer" },
+          "completed_courses": { "type": "integer" },
+          "average_grade": { "type": "number", "nullable": true },
+          "recent_events": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": "integer" },
+                "event": { "type": "string" },
+                "action": { "type": "string" },
+                "target": { "type": "string" },
+                "course_id": { "type": "integer", "nullable": true },
+                "origin": { "type": "string" },
+                "occurred_at": { "type": "string", "format": "date-time", "nullable": true }
+              }
+            }
+          },
+          "generated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "PaginationMeta": {
+        "type": "object",
+        "properties": {
+          "current_page": { "type": "integer" },
+          "from": { "type": "integer", "nullable": true },
+          "last_page": { "type": "integer" },
+          "path": { "type": "string" },
+          "per_page": { "type": "integer" },
+          "to": { "type": "integer", "nullable": true },
+          "total": { "type": "integer" }
+        }
+      },
+      "PaginationLinks": {
+        "type": "object",
+        "properties": {
+          "first": { "type": "string", "nullable": true },
+          "last": { "type": "string", "nullable": true },
+          "prev": { "type": "string", "nullable": true },
+          "next": { "type": "string", "nullable": true }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": { "message": { "type": "string" } }
+      }
+    },
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Sanctum personal access token. Obtain via POST /auth/login."
+      }
+    },
+    "responses": {
+      "Unauthorized": {
+        "description": "Missing or invalid bearer token",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      },
+      "NotFound": {
+        "description": "Resource not found",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      },
+      "UserList": {
+        "description": "Paginated user list",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "data": { "type": "array", "items": { "$ref": "#/components/schemas/User" } },
+                "links": { "$ref": "#/components/schemas/PaginationLinks" },
+                "meta": { "$ref": "#/components/schemas/PaginationMeta" }
+              }
+            }
+          }
+        }
+      },
+      "CourseList": {
+        "description": "Paginated course list",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "data": { "type": "array", "items": { "$ref": "#/components/schemas/Course" } },
+                "links": { "$ref": "#/components/schemas/PaginationLinks" },
+                "meta": { "$ref": "#/components/schemas/PaginationMeta" }
+              }
+            }
+          }
+        }
+      },
+      "CategoryList": {
+        "description": "Paginated category list",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "data": { "type": "array", "items": { "$ref": "#/components/schemas/Category" } },
+                "links": { "$ref": "#/components/schemas/PaginationLinks" },
+                "meta": { "$ref": "#/components/schemas/PaginationMeta" }
+              }
+            }
+          }
+        }
+      },
+      "GradeList": {
+        "description": "Paginated grade list",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "data": { "type": "array", "items": { "$ref": "#/components/schemas/Grade" } },
+                "links": { "$ref": "#/components/schemas/PaginationLinks" },
+                "meta": { "$ref": "#/components/schemas/PaginationMeta" }
+              }
+            }
+          }
+        }
+      },
+      "ActivityList": {
+        "description": "Paginated activity list",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "data": { "type": "array", "items": { "$ref": "#/components/schemas/Activity" } },
+                "links": { "$ref": "#/components/schemas/PaginationLinks" },
+                "meta": { "$ref": "#/components/schemas/PaginationMeta" }
+              }
+            }
+          }
+        }
+      },
+      "QuizList": {
+        "description": "Paginated quiz list",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "data": { "type": "array", "items": { "$ref": "#/components/schemas/Quiz" } },
+                "links": { "$ref": "#/components/schemas/PaginationLinks" },
+                "meta": { "$ref": "#/components/schemas/PaginationMeta" }
+              }
+            }
+          }
+        }
+      },
+      "QuizAttemptList": {
+        "description": "Paginated quiz-attempt list",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "data": { "type": "array", "items": { "$ref": "#/components/schemas/QuizAttempt" } },
+                "links": { "$ref": "#/components/schemas/PaginationLinks" },
+                "meta": { "$ref": "#/components/schemas/PaginationMeta" }
+              }
+            }
+          }
+        }
+      },
+      "CohortList": {
+        "description": "Paginated cohort list",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "data": { "type": "array", "items": { "$ref": "#/components/schemas/Cohort" } },
+                "links": { "$ref": "#/components/schemas/PaginationLinks" },
+                "meta": { "$ref": "#/components/schemas/PaginationMeta" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
