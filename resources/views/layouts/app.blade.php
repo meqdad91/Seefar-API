@@ -47,14 +47,15 @@
         <nav class="flex-1 px-3 py-4 space-y-1">
             @php
                 $links = [
-                    ['route' => 'dashboard',     'label' => 'Dashboard',  'icon' => 'home'],
-                    ['route' => 'engagement',    'label' => 'Engagement', 'icon' => 'chart-bar'],
-                    ['route' => 'quizzes',       'label' => 'Quizzes',    'icon' => 'pencil'],
-                    ['route' => 'atrisk',        'label' => 'At-risk',    'icon' => 'fire'],
-                    ['route' => 'cohorts',       'label' => 'Cohorts',    'icon' => 'users'],
-                    ['route' => 'languages',     'label' => 'Languages',  'icon' => 'globe'],
-                    ['route' => 'users.index',   'label' => 'Users',      'icon' => 'users'],
-                    ['route' => 'courses.index', 'label' => 'Courses',    'icon' => 'book'],
+                    ['route' => 'dashboard',      'label' => 'Dashboard',  'icon' => 'home'],
+                    ['route' => 'projects.index', 'label' => 'Projects',   'icon' => 'sparkles'],
+                    ['route' => 'engagement',     'label' => 'Engagement', 'icon' => 'chart-bar'],
+                    ['route' => 'quizzes',        'label' => 'Quizzes',    'icon' => 'pencil'],
+                    ['route' => 'atrisk',         'label' => 'At-risk',    'icon' => 'fire'],
+                    ['route' => 'cohorts',        'label' => 'Cohorts',    'icon' => 'users'],
+                    ['route' => 'languages',      'label' => 'Languages',  'icon' => 'globe'],
+                    ['route' => 'users.index',    'label' => 'Users',      'icon' => 'users'],
+                    ['route' => 'courses.index',  'label' => 'Courses',    'icon' => 'book'],
                 ];
             @endphp
             @foreach ($links as $l)

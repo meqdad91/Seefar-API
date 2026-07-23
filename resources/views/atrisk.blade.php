@@ -1,6 +1,9 @@
 @extends('layouts.app', ['title' => 'At-risk learners', 'subtitle' => $counts['at_risk'] . ' of ' . $counts['total_enrolled'] . ' enrolled users flagged'])
 
 @section('content')
+
+@include('partials.filters')
+
 @php
     $cards = [
         ['label' => 'Inactive 60d+', 'value' => number_format($counts['inactive']),  'sub' => 'no recent access',         'icon' => 'clock',     'tone' => 'rose',    'filter' => 'inactive'],
@@ -45,7 +48,22 @@
 
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
     <div class="bg-white rounded-xl shadow-card border border-slate-200/70 p-6">
-        <h2 class="text-sm font-semibold text-slate-900 mb-4">Risk overview</h2>
+        <div class="flex items-center gap-2 mb-2">
+            <h2 class="text-sm font-semibold text-slate-900">Risk overview</h2>
+            <div class="relative group cursor-pointer">
+                <span class="w-4 h-4 rounded-full bg-slate-100 text-slate-400 hover:bg-rose-50 hover:text-rose-600 flex items-center justify-center text-[10px] font-bold border border-slate-200">i</span>
+                <div class="absolute left-0 bottom-full mb-2 hidden group-hover:block w-72 p-3 bg-slate-900 text-white text-xs rounded-lg shadow-xl z-20 pointer-events-none">
+                    <strong>What does this gauge show?</strong><br>
+                    It represents the percentage of total enrolled learners ({{ number_format($counts['total_enrolled']) }}) who triggered 1 or more risk indicators:
+                    <ul class="list-disc pl-4 mt-1 space-y-0.5 text-[11px] text-slate-300">
+                        <li><strong>Inactive:</strong> No access for 60+ days</li>
+                        <li><strong>Low grade:</strong> Avg grade below 50%</li>
+                        <li><strong>Stalled:</strong> Enrolled 60+ days without finishing</li>
+                        <li><strong>No quiz:</strong> 0 quiz attempts submitted</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
         <div class="text-center py-2">
             @php $atRiskPct = $counts['total_enrolled'] > 0 ? round(100 * $counts['at_risk'] / $counts['total_enrolled']) : 0; @endphp
             <div class="relative inline-flex items-center justify-center w-32 h-32">
@@ -57,14 +75,22 @@
                 <div class="text-3xl font-semibold text-slate-900 tabular-nums">{{ $atRiskPct }}<span class="text-base">%</span></div>
             </div>
             <div class="text-xs text-slate-500 mt-3">
-                <span class="font-semibold text-slate-700">{{ number_format($counts['at_risk']) }}</span>
-                of {{ number_format($counts['total_enrolled']) }} flagged
+                <span class="font-semibold text-rose-600">{{ number_format($counts['at_risk']) }}</span>
+                of <span class="font-semibold text-slate-700">{{ number_format($counts['total_enrolled']) }}</span> enrolled learners flagged
             </div>
         </div>
     </div>
 
     <div class="bg-white rounded-xl shadow-card border border-slate-200/70 p-6 lg:col-span-2">
-        <h2 class="text-sm font-semibold text-slate-900 mb-4">Last access distribution</h2>
+        <div class="flex items-center gap-2 mb-4">
+            <h2 class="text-sm font-semibold text-slate-900">Last access distribution</h2>
+            <div class="relative group cursor-pointer">
+                <span class="w-4 h-4 rounded-full bg-slate-100 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 flex items-center justify-center text-[10px] font-bold border border-slate-200">i</span>
+                <div class="absolute right-0 bottom-full mb-2 hidden group-hover:block w-72 p-2.5 bg-slate-900 text-white text-xs rounded-lg shadow-xl z-20 pointer-events-none">
+                    Categorizes all enrolled learners by their last platform access recency (Never, within 7 days, 8–30 days, 31–90 days, or 90+ days inactive).
+                </div>
+            </div>
+        </div>
         <div class="h-48"><canvas id="accessChart"></canvas></div>
     </div>
 </div>

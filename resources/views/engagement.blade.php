@@ -1,6 +1,9 @@
 @extends('layouts.app', ['title' => 'Engagement', 'subtitle' => 'Activity over the last 30 days'])
 
 @section('content')
+
+@include('partials.filters')
+
 @php
     $cards = [
         ['label' => 'Total events',    'value' => number_format($totalEvents),                    'sub' => 'last 30 days',                                          'icon' => 'fire',     'tone' => 'amber'],
@@ -37,14 +40,30 @@
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
     <div class="bg-white rounded-xl shadow-card border border-slate-200/70 p-6 lg:col-span-2">
         <div class="flex items-center justify-between mb-4">
-            <h2 class="text-sm font-semibold text-slate-900">Daily activity</h2>
+            <div class="flex items-center gap-2">
+                <h2 class="text-sm font-semibold text-slate-900">Daily activity</h2>
+                <div class="relative group cursor-pointer">
+                    <span class="w-4 h-4 rounded-full bg-slate-100 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 flex items-center justify-center text-[10px] font-bold border border-slate-200">i</span>
+                    <div class="absolute left-0 bottom-full mb-2 hidden group-hover:block w-64 p-2.5 bg-slate-900 text-white text-xs rounded-lg shadow-xl z-20 pointer-events-none">
+                        Tracks total daily log activity (blue line) and unique active users (green dashed line). Use the <strong>Traffic Origin</strong> filter to isolate web vs mobile app users.
+                    </div>
+                </div>
+            </div>
             <span class="text-xs text-slate-500">{{ $daily->count() }} days</span>
         </div>
         <div class="h-64"><canvas id="dailyChart"></canvas></div>
     </div>
 
     <div class="bg-white rounded-xl shadow-card border border-slate-200/70 p-6">
-        <h2 class="text-sm font-semibold text-slate-900 mb-4">By origin</h2>
+        <div class="flex items-center gap-2 mb-4">
+            <h2 class="text-sm font-semibold text-slate-900">By origin</h2>
+            <div class="relative group cursor-pointer">
+                <span class="w-4 h-4 rounded-full bg-slate-100 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 flex items-center justify-center text-[10px] font-bold border border-slate-200">i</span>
+                <div class="absolute right-0 bottom-full mb-2 hidden group-hover:block w-64 p-2.5 bg-slate-900 text-white text-xs rounded-lg shadow-xl z-20 pointer-events-none">
+                    Reflects entry points: <strong>web</strong> (browser dashboard), <strong>ws</strong> (mobile app / web services), and <strong>cli</strong> (automated tasks).
+                </div>
+            </div>
+        </div>
         <div class="space-y-3">
             @php $maxOrigin = max($byOrigin->pluck('count')->max(), 1); @endphp
             @foreach ($byOrigin as $o)
@@ -65,12 +84,28 @@
 
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
     <div class="bg-white rounded-xl shadow-card border border-slate-200/70 p-6">
-        <h2 class="text-sm font-semibold text-slate-900 mb-4">Activity by hour of day</h2>
+        <div class="flex items-center gap-2 mb-4">
+            <h2 class="text-sm font-semibold text-slate-900">Activity by hour of day</h2>
+            <div class="relative group cursor-pointer">
+                <span class="w-4 h-4 rounded-full bg-slate-100 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 flex items-center justify-center text-[10px] font-bold border border-slate-200">i</span>
+                <div class="absolute left-0 bottom-full mb-2 hidden group-hover:block w-72 p-2.5 bg-slate-900 text-white text-xs rounded-lg shadow-xl z-20 pointer-events-none">
+                    Shows hourly distribution of events in <strong>Server Time (UTC+03:00)</strong>. Filter by <strong>Country/Region</strong> above to isolate usage hours for specific countries (e.g. Iraq).
+                </div>
+            </div>
+        </div>
         <div class="h-56"><canvas id="hourlyChart"></canvas></div>
     </div>
 
     <div class="bg-white rounded-xl shadow-card border border-slate-200/70 p-6">
-        <h2 class="text-sm font-semibold text-slate-900 mb-4">Top components</h2>
+        <div class="flex items-center gap-2 mb-4">
+            <h2 class="text-sm font-semibold text-slate-900">Top components</h2>
+            <div class="relative group cursor-pointer">
+                <span class="w-4 h-4 rounded-full bg-slate-100 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 flex items-center justify-center text-[10px] font-bold border border-slate-200">i</span>
+                <div class="absolute right-0 bottom-full mb-2 hidden group-hover:block w-64 p-2.5 bg-slate-900 text-white text-xs rounded-lg shadow-xl z-20 pointer-events-none">
+                    Breakdown of activity by Moodle subsystem module (e.g., <code>mod_quiz</code>, <code>core</code>, <code>mod_forum</code>).
+                </div>
+            </div>
+        </div>
         <div class="space-y-2.5">
             @php $maxComp = max($topComponents->pluck('count')->max(), 1); @endphp
             @foreach ($topComponents as $c)

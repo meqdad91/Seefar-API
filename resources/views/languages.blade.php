@@ -1,6 +1,9 @@
 @extends('layouts.app', ['title' => 'Languages & Programs', 'subtitle' => $totalCategories . ' top-level categories · ' . number_format($totalCourses) . ' courses · ' . number_format($totalEnrolled) . ' learners'])
 
 @section('content')
+
+@include('partials.filters')
+
 @php
     $cards = [
         ['label' => 'Programs',         'value' => number_format($totalCategories), 'sub' => 'top-level categories',                         'icon' => 'globe',     'tone' => 'indigo'],
@@ -34,16 +37,21 @@
     @endforeach
 </div>
 
-<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
     <div class="bg-white rounded-xl shadow-card border border-slate-200/70 p-6">
         <h2 class="text-sm font-semibold text-slate-900 mb-1">Enrolment by program</h2>
         <p class="text-xs text-slate-500 mb-4">Total enrolled vs active 30d</p>
-        <div class="h-72"><canvas id="enrolChart"></canvas></div>
+        <div class="h-64"><canvas id="enrolChart"></canvas></div>
     </div>
     <div class="bg-white rounded-xl shadow-card border border-slate-200/70 p-6">
-        <h2 class="text-sm font-semibold text-slate-900 mb-1">Performance by program</h2>
-        <p class="text-xs text-slate-500 mb-4">Avg grade vs completion rate</p>
-        <div class="h-72"><canvas id="perfChart"></canvas></div>
+        <h2 class="text-sm font-semibold text-slate-900 mb-1">Completion rate % by program</h2>
+        <p class="text-xs text-slate-500 mb-4">% of enrolled learners completing requirements</p>
+        <div class="h-64"><canvas id="completionChart"></canvas></div>
+    </div>
+    <div class="bg-white rounded-xl shadow-card border border-slate-200/70 p-6">
+        <h2 class="text-sm font-semibold text-slate-900 mb-1">Average grade % by program</h2>
+        <p class="text-xs text-slate-500 mb-4">Scores among graded submission subset</p>
+        <div class="h-64"><canvas id="gradeChart"></canvas></div>
     </div>
 </div>
 
@@ -176,20 +184,40 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    new Chart(document.getElementById('perfChart'), {
+    new Chart(document.getElementById('completionChart'), {
         type: 'bar',
         data: {
             labels,
             datasets: [
-                { label: 'Avg grade %',  data: {!! $gradeData->toJson() !!}, backgroundColor: '#10b981', borderRadius: 4 },
                 { label: 'Completion %', data: {!! $completionData->toJson() !!}, backgroundColor: '#6366f1', borderRadius: 4 },
             ]
         },
         options: {
             responsive: true, maintainAspectRatio: false, indexAxis: 'y',
             plugins: {
-                legend: { position: 'bottom', labels: { boxWidth: 10, boxHeight: 10, usePointStyle: true, padding: 16, font: { family: 'Inter', size: 11 } } },
-                tooltip: { backgroundColor: '#0f172a', padding: 10, cornerRadius: 6, callbacks: { label: (ctx) => ctx.dataset.label + ': ' + ctx.parsed.x + '%' } }
+                legend: { display: false },
+                tooltip: { backgroundColor: '#0f172a', padding: 10, cornerRadius: 6, callbacks: { label: (ctx) => 'Completion: ' + ctx.parsed.x + '%' } }
+            },
+            scales: {
+                x: { beginAtZero: true, max: 100, grid: { color: '#f1f5f9' }, ticks: { font: { family: 'Inter', size: 11 }, color: '#94a3b8', callback: (v) => v + '%' } },
+                y: { grid: { display: false }, ticks: { font: { family: 'Inter', size: 11 }, color: '#475569' } }
+            }
+        }
+    });
+
+    new Chart(document.getElementById('gradeChart'), {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [
+                { label: 'Avg grade %', data: {!! $gradeData->toJson() !!}, backgroundColor: '#10b981', borderRadius: 4 },
+            ]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+            plugins: {
+                legend: { display: false },
+                tooltip: { backgroundColor: '#0f172a', padding: 10, cornerRadius: 6, callbacks: { label: (ctx) => 'Avg Grade: ' + ctx.parsed.x + '%' } }
             },
             scales: {
                 x: { beginAtZero: true, max: 100, grid: { color: '#f1f5f9' }, ticks: { font: { family: 'Inter', size: 11 }, color: '#94a3b8', callback: (v) => v + '%' } },
