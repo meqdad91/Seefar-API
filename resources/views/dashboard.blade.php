@@ -1,6 +1,9 @@
 @extends('layouts.app', ['title' => 'Dashboard', 'subtitle' => 'Overview of platform activity'])
 
 @section('content')
+
+@include('partials.filters')
+
 @php
     $cards = [
         [
@@ -27,7 +30,7 @@
         [
             'label' => 'Quiz attempts',
             'value' => number_format($stats['quiz_attempts']),
-            'sub' => number_format($stats['quiz_attempts_finished']) . ' finished',
+            'sub' => number_format($stats['quizzes_total']) . ' quizzes | ' . number_format($stats['quiz_attempts_finished']) . ' finished',
             'icon' => 'pencil',
             'tone' => 'amber',
         ],

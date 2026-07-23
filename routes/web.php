@@ -7,6 +7,7 @@ use App\Http\Controllers\Web\DashboardController;
 use App\Http\Controllers\Web\EngagementController;
 use App\Http\Controllers\Web\LanguagesController;
 use App\Http\Controllers\Web\LoginController;
+use App\Http\Controllers\Web\ProjectsController;
 use App\Http\Controllers\Web\QuizzesController;
 use App\Http\Controllers\Web\UsersWebController;
 use Illuminate\Support\Facades\Route;
@@ -28,6 +29,10 @@ Route::middleware('admin.session')->group(function () {
     Route::get('/users', [UsersWebController::class, 'index'])->name('users.index');
     Route::get('/users/{id}', [UsersWebController::class, 'show'])->whereNumber('id')->name('users.show');
 
+    Route::get('/projects', [ProjectsController::class, 'index'])->name('projects.index');
+    Route::get('/projects/{id}', [ProjectsController::class, 'show'])->name('projects.show');
+
     Route::get('/courses', [CoursesWebController::class, 'index'])->name('courses.index');
     Route::get('/courses/{id}', [CoursesWebController::class, 'show'])->whereNumber('id')->name('courses.show');
 });
+

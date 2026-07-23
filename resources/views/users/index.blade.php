@@ -1,6 +1,9 @@
 @extends('layouts.app', ['title' => 'Users', 'subtitle' => number_format($users->total()) . ' users'])
 
 @section('content')
+
+@include('partials.filters')
+
 <div class="bg-white rounded-xl shadow-card border border-slate-200/70 overflow-hidden">
     <div class="px-6 py-4 border-b border-slate-100">
         <form method="GET" class="flex gap-2 max-w-xl">
