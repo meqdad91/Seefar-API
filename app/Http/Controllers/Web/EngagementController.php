@@ -59,24 +59,26 @@ class EngagementController extends Controller
             return $query;
         };
 
+        $p = DB::getTablePrefix();
+
         $totalEvents = $base()->count();
         $uniqueUsers = $base()->where('l.userid', '>', 0)->distinct('l.userid')->count('l.userid');
         $events7d = $base()->where('l.timecreated', '>=', $cutoff7)->count();
 
         $peakDay = $base()
-            ->selectRaw('DATE(FROM_UNIXTIME(l.timecreated)) as day, COUNT(*) as events')
+            ->selectRaw("DATE(FROM_UNIXTIME({$p}l.timecreated)) as day, COUNT(*) as events")
             ->groupBy('day')
             ->orderByDesc('events')
             ->first();
 
         $daily = $base()
-            ->selectRaw('DATE(FROM_UNIXTIME(l.timecreated)) as day, COUNT(*) as events, COUNT(DISTINCT l.userid) as users')
+            ->selectRaw("DATE(FROM_UNIXTIME({$p}l.timecreated)) as day, COUNT(*) as events, COUNT(DISTINCT {$p}l.userid) as users")
             ->groupBy('day')
             ->orderBy('day')
             ->get();
 
         $hourly = $base()
-            ->selectRaw('HOUR(FROM_UNIXTIME(l.timecreated)) as hour, COUNT(*) as events')
+            ->selectRaw("HOUR(FROM_UNIXTIME({$p}l.timecreated)) as hour, COUNT(*) as events")
             ->groupBy('hour')
             ->orderBy('hour')
             ->get()
@@ -88,7 +90,7 @@ class EngagementController extends Controller
         ]);
 
         $topEvents = $base()
-            ->selectRaw('l.eventname, COUNT(*) as count')
+            ->select('l.eventname', DB::raw('COUNT(*) as count'))
             ->groupBy('l.eventname')
             ->orderByDesc('count')
             ->limit(10)
@@ -100,7 +102,7 @@ class EngagementController extends Controller
             ]);
 
         $topComponents = $base()
-            ->selectRaw('l.component, COUNT(*) as count')
+            ->select('l.component', DB::raw('COUNT(*) as count'))
             ->groupBy('l.component')
             ->orderByDesc('count')
             ->limit(8)
@@ -111,7 +113,7 @@ class EngagementController extends Controller
             ]);
 
         $byOrigin = $base()
-            ->selectRaw('l.origin, COUNT(*) as count')
+            ->select('l.origin', DB::raw('COUNT(*) as count'))
             ->groupBy('l.origin')
             ->orderByDesc('count')
             ->get()
@@ -122,7 +124,7 @@ class EngagementController extends Controller
 
         $topUsers = $base()
             ->where('l.userid', '>', 0)
-            ->selectRaw('l.userid, COUNT(*) as count')
+            ->select('l.userid', DB::raw('COUNT(*) as count'))
             ->groupBy('l.userid')
             ->orderByDesc('count')
             ->limit(8)

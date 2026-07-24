@@ -73,6 +73,8 @@ class QuizzesController extends Controller
         $finishedAttempts = $attemptsByState['Finished'];
         $inProgress = $attemptsByState['In Progress'];
 
+        $prefix = DB::getTablePrefix();
+
         // Finished attempts with ratios
         $finishedQuery = (clone $attemptQuery)
             ->where('qa.state', 'finished')
@@ -85,7 +87,7 @@ class QuizzesController extends Controller
                 'q.sumgrades as max',
                 'q.name as quiz_name',
                 'q.course as course_id',
-                DB::raw('mdl_qa.sumgrades / mdl_q.sumgrades as ratio')
+                DB::raw("{$prefix}qa.sumgrades / {$prefix}q.sumgrades as ratio")
             );
 
         $finished = $finishedQuery->get();
@@ -108,7 +110,7 @@ class QuizzesController extends Controller
         $cutoff = time() - 30 * 86400;
         $daily = (clone $attemptQuery)
             ->where('qa.timestart', '>=', $cutoff)
-            ->selectRaw('DATE(FROM_UNIXTIME(qa.timestart)) as day, COUNT(*) as attempts')
+            ->selectRaw("DATE(FROM_UNIXTIME({$prefix}qa.timestart)) as day, COUNT(*) as attempts")
             ->groupBy('day')
             ->orderBy('day')
             ->get();

@@ -222,8 +222,8 @@
     $dailyValues = $daily->pluck('attempts')->values();
     $bucketLabels = collect(array_keys($buckets));
     $bucketValues = collect(array_values($buckets));
-    $stateLabels = $attemptsByState->keys();
-    $stateValues = $attemptsByState->values();
+    $stateLabels = collect(is_array($attemptsByState) ? array_keys($attemptsByState) : $attemptsByState->keys());
+    $stateValues = collect(is_array($attemptsByState) ? array_values($attemptsByState) : $attemptsByState->values());
     $stateColors = ['Finished' => '#10b981', 'In Progress' => '#f59e0b', 'Overdue' => '#f43f5e', 'Abandoned' => '#94a3b8'];
     $stateBg = $stateLabels->map(fn ($s) => $stateColors[$s] ?? '#cbd5e1');
 @endphp
