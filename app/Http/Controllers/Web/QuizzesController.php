@@ -34,7 +34,7 @@ class QuizzesController extends Controller
         // Base quiz query
         $quizQuery = DB::table('quiz as q');
         if (!empty($filters['course_id'])) {
-            $quizQuery->where('q.course', $filters['course_id']);
+            $quizQuery->whereIn('q.course', (array) $filters['course_id']);
         } elseif ($projectCourseIds !== null) {
             $quizQuery->whereIn('q.course', $projectCourseIds);
         }
@@ -45,7 +45,7 @@ class QuizzesController extends Controller
             ->join('quiz as q', 'q.id', '=', 'qa.quiz');
 
         if (!empty($filters['course_id'])) {
-            $attemptQuery->where('q.course', $filters['course_id']);
+            $attemptQuery->whereIn('q.course', (array) $filters['course_id']);
         } elseif ($projectCourseIds !== null) {
             $attemptQuery->whereIn('q.course', $projectCourseIds);
         }

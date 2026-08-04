@@ -36,7 +36,7 @@ class UsersWebController extends Controller
                 $q->select('ue.userid')
                     ->from('user_enrolments as ue')
                     ->join('enrol as e', 'e.id', '=', 'ue.enrolid')
-                    ->where('e.courseid', $filters['course_id']);
+                    ->whereIn('e.courseid', (array) $filters['course_id']);
             });
         } elseif (!empty($filters['project_id'])) {
             $courseIds = $projectService->getCourseIdsForProject($filters['project_id']);
@@ -49,18 +49,22 @@ class UsersWebController extends Controller
         }
 
         if (!empty($filters['completion_status'])) {
-            if ($filters['completion_status'] === 'completed') {
+            $cs = (array) $filters['completion_status'];
+            $hasCompleted = in_array('completed', $cs, true);
+            $hasInProgress = in_array('in_progress', $cs, true);
+
+            if ($hasCompleted && !$hasInProgress) {
                 $query->whereIn('id', function ($q) use ($filters) {
                     $sub = $q->select('userid')->from('course_completions')->whereNotNull('timecompleted');
                     if (!empty($filters['course_id'])) {
-                        $sub->where('course', $filters['course_id']);
+                        $sub->whereIn('course', (array) $filters['course_id']);
                     }
                 });
-            } elseif ($filters['completion_status'] === 'in_progress') {
+            } elseif ($hasInProgress && !$hasCompleted) {
                 $query->whereNotIn('id', function ($q) use ($filters) {
                     $sub = $q->select('userid')->from('course_completions')->whereNotNull('timecompleted');
                     if (!empty($filters['course_id'])) {
-                        $sub->where('course', $filters['course_id']);
+                        $sub->whereIn('course', (array) $filters['course_id']);
                     }
                 });
             }

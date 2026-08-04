@@ -136,30 +136,43 @@
         </div>
     </div>
 
-    <!-- Recent Enrolled Students (Course-Scoped Profile Links) -->
-    <div class="bg-white rounded-xl shadow-card border border-slate-200/70 p-6">
-        <h2 class="text-sm font-semibold text-slate-900 mb-1">Enrolled Students</h2>
-        <p class="text-xs text-slate-500 mb-4">Profile links scope grades to this course</p>
-        @if ($students->isEmpty())
-            <p class="text-sm text-slate-500 text-center py-6">No enrolled students.</p>
-        @else
-            <ul class="space-y-2">
-                @foreach ($students as $s)
-                    @php
-                        $sName = trim($s->firstname.' '.$s->lastname) ?: $s->username;
-                        $sInit = strtoupper(substr($s->firstname,0,1).substr($s->lastname,0,1)) ?: strtoupper(substr($s->username,0,2));
-                    @endphp
-                    <li>
-                        <a href="{{ route('users.show', [$s->id, 'course_id' => $course->id]) }}" class="flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-slate-50 transition">
-                            <div class="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-100 to-indigo-200 text-indigo-700 text-xs font-semibold flex items-center justify-center flex-shrink-0">{{ $sInit }}</div>
-                            <div class="min-w-0">
-                                <div class="text-sm font-medium text-slate-900 truncate">{{ $sName }}</div>
-                                <div class="text-xs text-slate-500 truncate">{{ $s->email }}</div>
-                            </div>
-                        </a>
-                    </li>
-                @endforeach
-            </ul>
+    <!-- Enrolled Students (Course-Scoped Profile Links) -->
+    <div class="bg-white rounded-xl shadow-card border border-slate-200/70 p-6 flex flex-col justify-between">
+        <div>
+            <div class="flex items-center justify-between mb-1">
+                <h2 class="text-sm font-semibold text-slate-900">Enrolled Students</h2>
+                <a href="{{ route('users.index', ['course_id' => $course->id]) }}" class="inline-flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 font-semibold transition">
+                    View All ({{ number_format($studentCount) }}) →
+                </a>
+            </div>
+            <p class="text-xs text-slate-500 mb-4">Profile links scope grades to this course</p>
+            @if ($students->isEmpty())
+                <p class="text-sm text-slate-500 text-center py-6">No enrolled students.</p>
+            @else
+                <ul class="space-y-2">
+                    @foreach ($students as $s)
+                        @php
+                            $sName = trim($s->firstname.' '.$s->lastname) ?: $s->username;
+                            $sInit = strtoupper(substr($s->firstname,0,1).substr($s->lastname,0,1)) ?: strtoupper(substr($s->username,0,2));
+                        @endphp
+                        <li>
+                            <a href="{{ route('users.show', [$s->id, 'course_id' => $course->id]) }}" class="flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-slate-50 transition">
+                                <div class="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-100 to-indigo-200 text-indigo-700 text-xs font-semibold flex items-center justify-center flex-shrink-0">{{ $sInit }}</div>
+                                <div class="min-w-0">
+                                    <div class="text-sm font-medium text-slate-900 truncate">{{ $sName }}</div>
+                                    <div class="text-xs text-slate-500 truncate">{{ $s->email }}</div>
+                                </div>
+                            </a>
+                        </li>
+                    @endforeach
+                </ul>
+            @endif
+        </div>
+
+        @if ($students->hasPages())
+            <div class="mt-4 pt-3 border-t border-slate-100">
+                {{ $students->links() }}
+            </div>
         @endif
     </div>
 
@@ -188,7 +201,7 @@
             <h2 class="text-sm font-semibold text-slate-900">Completed Students List</h2>
             <p class="text-xs text-slate-500 mt-0.5">Learners who finished this course with Pre-grade, Post-grade & % Knowledge Gain</p>
         </div>
-        <span class="text-xs text-emerald-600 font-semibold">{{ $completedStudents->count() }} Completed Learner(s)</span>
+        <span class="text-xs text-emerald-600 font-semibold">{{ number_format($completedStudents->total()) }} Completed Learner(s)</span>
     </div>
 
     @if ($completedStudents->isEmpty())
@@ -241,6 +254,12 @@
                 </tbody>
             </table>
         </div>
+
+        @if ($completedStudents->hasPages())
+            <div class="mt-4 pt-3 border-t border-slate-100">
+                {{ $completedStudents->links() }}
+            </div>
+        @endif
     @endif
 </div>
 

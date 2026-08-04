@@ -47,7 +47,7 @@ class DashboardController extends Controller
             $courseQuery->whereIn('id', $projectCourseIds);
         }
         if (!empty($filters['course_id'])) {
-            $courseQuery->where('id', $filters['course_id']);
+            $courseQuery->whereIn('id', (array) $filters['course_id']);
         }
         $coursesTotal = (clone $courseQuery)->count();
         $coursesVisible = (clone $courseQuery)->where('visible', 1)->count();
@@ -62,7 +62,7 @@ class DashboardController extends Controller
             $enrolQuery->whereIn('e.courseid', $projectCourseIds);
         }
         if (!empty($filters['course_id'])) {
-            $enrolQuery->where('e.courseid', $filters['course_id']);
+            $enrolQuery->whereIn('e.courseid', (array) $filters['course_id']);
         }
         $this->filterService->applyUserFilters($enrolQuery, $filters, 'u');
         $this->filterService->applyDateFilter($enrolQuery, $filters, 'ue.timecreated');
@@ -77,7 +77,7 @@ class DashboardController extends Controller
             $completionQuery->whereIn('cc.course', $projectCourseIds);
         }
         if (!empty($filters['course_id'])) {
-            $completionQuery->where('cc.course', $filters['course_id']);
+            $completionQuery->whereIn('cc.course', (array) $filters['course_id']);
         }
         $this->filterService->applyUserFilters($completionQuery, $filters, 'u');
         $this->filterService->applyDateFilter($completionQuery, $filters, 'cc.timecompleted');
@@ -91,7 +91,7 @@ class DashboardController extends Controller
             $quizQuery->whereIn('q.course', $projectCourseIds);
         }
         if (!empty($filters['course_id'])) {
-            $quizQuery->where('q.course', $filters['course_id']);
+            $quizQuery->whereIn('q.course', (array) $filters['course_id']);
         }
         $quizzesTotal = $quizQuery->count();
 
@@ -103,7 +103,7 @@ class DashboardController extends Controller
             $quizAttemptQuery->whereIn('q.course', $projectCourseIds);
         }
         if (!empty($filters['course_id'])) {
-            $quizAttemptQuery->where('q.course', $filters['course_id']);
+            $quizAttemptQuery->whereIn('q.course', (array) $filters['course_id']);
         }
         $this->filterService->applyUserFilters($quizAttemptQuery, $filters, 'u');
         $this->filterService->applyDateFilter($quizAttemptQuery, $filters, 'qa.timestart');
@@ -135,7 +135,7 @@ class DashboardController extends Controller
             $rows->whereIn('e.courseid', $projectCourseIds);
         }
         if (!empty($filters['course_id'])) {
-            $rows->where('e.courseid', $filters['course_id']);
+            $rows->whereIn('e.courseid', (array) $filters['course_id']);
         }
         $this->filterService->applyUserFilters($rows, $filters, 'u');
 

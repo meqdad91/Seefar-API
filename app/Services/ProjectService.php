@@ -68,11 +68,29 @@ class ProjectService
     }
 
     /**
-     * Resolve project ID to array of course IDs.
+     * Resolve single or multiple project IDs to an array of mapped course IDs.
+     *
+     * @param string|array $projectId
+     * @return array
      */
-    public function getCourseIdsForProject(string $projectId): array
+    public function getCourseIdsForProject($projectId): array
     {
-        $project = $this->getProjectById($projectId);
+        if (empty($projectId)) {
+            return [];
+        }
+
+        if (is_array($projectId)) {
+            $courseIds = [];
+            foreach ($projectId as $pid) {
+                $project = $this->getProjectById((string) $pid);
+                if ($project && !empty($project['course_ids'])) {
+                    $courseIds = array_merge($courseIds, $project['course_ids']);
+                }
+            }
+            return array_values(array_unique($courseIds));
+        }
+
+        $project = $this->getProjectById((string) $projectId);
         return $project ? $project['course_ids'] : [];
     }
 }

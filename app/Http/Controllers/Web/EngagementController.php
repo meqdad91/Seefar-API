@@ -42,11 +42,11 @@ class EngagementController extends Controller
             }
 
             if (!empty($filters['origin'])) {
-                $query->where('l.origin', $filters['origin']);
+                $query->whereIn('l.origin', (array) $filters['origin']);
             }
 
             if (!empty($filters['course_id'])) {
-                $query->where('l.courseid', $filters['course_id']);
+                $query->whereIn('l.courseid', (array) $filters['course_id']);
             } elseif ($projectCourseIds !== null) {
                 $query->whereIn('l.courseid', $projectCourseIds);
             }

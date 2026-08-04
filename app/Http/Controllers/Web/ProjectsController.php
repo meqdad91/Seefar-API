@@ -30,13 +30,13 @@ class ProjectsController extends Controller
         foreach ($projectsList as $pId => $pData) {
             $courseIds = $pData['course_ids'];
 
-            // Skip if filtering by specific project and this isn't it
-            if (!empty($filters['project_id']) && $filters['project_id'] !== $pId) {
+            // Skip if filtering by project and this project is not included
+            if (!empty($filters['project_id']) && !in_array((string) $pId, (array) $filters['project_id'], true)) {
                 continue;
             }
 
-            // Skip if filtering by specific course and it's not in this project
-            if (!empty($filters['course_id']) && !in_array($filters['course_id'], $courseIds)) {
+            // Skip if filtering by course and no courses in this project match the filter
+            if (!empty($filters['course_id']) && empty(array_intersect((array) $filters['course_id'], $courseIds))) {
                 continue;
             }
 

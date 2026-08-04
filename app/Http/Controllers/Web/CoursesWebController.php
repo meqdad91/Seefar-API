@@ -28,7 +28,7 @@ class CoursesWebController extends Controller
         }
 
         if ($courseId) {
-            $query->where('id', $courseId);
+            $query->whereIn('id', (array) $courseId);
         }
 
         if ($search) {
@@ -68,7 +68,7 @@ class CoursesWebController extends Controller
         $completionsStarted = DB::table('course_completions')->where('course', $id)->count();
         $completionsDone = DB::table('course_completions')->where('course', $id)->whereNotNull('timecompleted')->count();
 
-        // Enrolled students
+        // Enrolled students (paginated, 15 per page)
         $students = User::where('deleted', 0)
             ->whereIn('id', function ($q) use ($id) {
                 $q->select('ue.userid')
@@ -76,21 +76,22 @@ class CoursesWebController extends Controller
                     ->join('enrol as e', 'e.id', '=', 'ue.enrolid')
                     ->where('e.courseid', $id);
             })
-            ->limit(10)
-            ->get();
+            ->orderBy('id')
+            ->paginate(15, ['*'], 'enrolled_page')
+            ->withQueryString();
 
-        // Completed Students list with Pre-grade, Post-grade, and % Knowledge Gain
-        $completedRows = DB::table('course_completions as cc')
+        // Completed Students list (paginated, 25 per page) with Pre-grade, Post-grade, and % Knowledge Gain
+        $completedRowsPaginator = DB::table('course_completions as cc')
             ->join('user as u', 'u.id', '=', 'cc.userid')
             ->where('cc.course', $id)
             ->whereNotNull('cc.timecompleted')
             ->where('u.deleted', 0)
             ->select('u.id', 'u.username', 'u.firstname', 'u.lastname', 'u.email', 'cc.timecompleted')
             ->orderByDesc('cc.timecompleted')
-            ->limit(20)
-            ->get();
+            ->paginate(25, ['*'], 'completed_page')
+            ->withQueryString();
 
-        $completedStudents = $completedRows->map(function ($u) use ($id) {
+        $completedStudents = $completedRowsPaginator->through(function ($u) use ($id) {
             $name = trim($u->firstname . ' ' . $u->lastname) ?: $u->username;
 
             // Fetch quiz attempts for this user in this course
